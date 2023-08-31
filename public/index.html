@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Bill App</title>
+    <script src="//unpkg.com/alpinejs" defer></script>
+</head>
+<body>
+    <!-- AlpineJS widgets-->
+
+    <!-- TOTAL-->
+    <div x-data="{ pricePlans: [], selectedPlan: '', actions: '', total: 0 }">
+        <h2>Calculate Phone Bill</h2>
+        <select x-model="selectedPlan">
+            <option value="" disabled>Select a Price Plan</option>
+            <template x-for="plan in pricePlans" :key="plan.id">
+                <option x-text="plan.plan_name" :value="plan.plan_name"></option>
+            </template>
+        </select>
+        <input type="text" x-model="actions" placeholder="Enter actions (comma-separated)">
+        <button x-on:click="calculateTotal()">Calculate</button>
+        <p x-text="'Total: ' + total"></p>
+    </div>
+    
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('pricePlans', []);
+        });
+    
+        function calculateTotal() {
+            const selectedPlan = Alpine.store('pricePlans').find(plan => plan.plan_name === this.selectedPlan);
+            if (selectedPlan) {
+                const actionsArray = this.actions.split(',').map(action => action.trim());
+    
+                fetch('/api/phonebill', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        price_plan: selectedPlan.plan_name,
+                        actions: actionsArray
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    this.total = data.total;
+                })
+                .catch(error => {
+                    console.error('Error calculating total:', error);
+                });
+            }
+        }
+    </script>
+    
+    
+    <!--NEW-->
+    <div x-data="{ name: '', call_cost: 0, sms_cost: 0 }">
+        <h2>Creating New Price Plan</h2>
+        <input type="text" x-model="name" placeholder="Plan Name">
+        <input type="number" x-model="call_cost" placeholder="Call Cost">
+        <input type="number" x-model="sms_cost" placeholder="SMS Cost">
+        <button x-on:click="createPricePlan()">Create</button>
+    </div>
+    
+    <script>
+        function createPricePlan() {
+            const data = {
+                name: this.name,
+                call_cost: this.call_cost,
+                sms_cost: this.sms_cost
+            };
+    
+            fetch('/api/price_plan/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Handle success response if needed
+            })
+            .catch(error => {
+                console.error('Error creating price plan:', error);
+            });
+        }
+    </script>
+    
+    
+    <!--DISPLAYING AVAILABLE-->
+    <div x-data="{ pricePlans: [] }" x-init="fetchPricePlans()">
+        <h2>Available Price Plans</h2>
+        <ul>
+            <li x-for="plan in pricePlans" x-text="plan.plan_name"></li>
+        </ul>
+    </div>
+    
+    <script>
+        function fetchPricePlans() {
+            fetch('/api/price_plans')
+                .then(response => response.json())
+                .then(data => {
+                    Alpine.store('pricePlans', data); // Store the data in Alpine store
+                });
+        }
+    
+        document.addEventListener('alpine:init', () => {
+            fetchPricePlans(); // Fetch the price plans when Alpine initializes
+        });
+    </script>
+    
+
+</body>
+</html>
